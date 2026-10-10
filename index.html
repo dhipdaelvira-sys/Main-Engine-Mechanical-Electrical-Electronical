@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handbook Main Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky navbar + chapter sections; every term opens a popup with diagram, explanation and search links (Google, Pinterest, YouTube, IMO, SOLAS, MARPOL, Class) */
+:root{
+  --bg:#edf0f2; --surface:#ffffff; --ink:#0e1d2a; --muted:#53636f; --line:#cdd5db;
+  --accent:#c2410c; --accent-ink:#ffffff; --elec:#0b6b78; --elec-soft:#d8eef0; --warn-soft:#fde9dc;
+  --ok:#1b7a43; --bad:#b42318; --nav:#0e1d2a; --nav-ink:#eef3f6;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a141c; --surface:#122230; --ink:#e8eef2; --muted:#9fb0bc; --line:#26394a;
+  --accent:#ff8a4c; --accent-ink:#1a0a02; --elec:#5cc8d6; --elec-soft:#10343b; --warn-soft:#3a2214;
+  --ok:#5fd18b; --bad:#ff8f84; --nav:#050b10; --nav-ink:#eef3f6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a141c; --surface:#122230; --ink:#e8eef2; --muted:#9fb0bc; --line:#26394a;
+  --accent:#ff8a4c; --accent-ink:#1a0a02; --elec:#5cc8d6; --elec-soft:#10343b; --warn-soft:#3a2214;
+  --ok:#5fd18b; --bad:#ff8f84; --nav:#050b10; --nav-ink:#eef3f6; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:7rem}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding-inline:0}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1080px;margin-inline:auto;padding-inline:16px}
+h1,h2,h3{font-family:var(--display);line-height:1.05;text-wrap:balance;margin:0}
+/* top bar */
+.topbar{background:var(--nav);color:var(--nav-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:30;border-bottom:3px solid var(--accent)}
+.topbar .wrap{display:flex;align-items:center;gap:12px;padding-block:8px}
+.brand{font-family:var(--display);font-weight:700;font-size:1.25rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;text-decoration:none}
+.brand small{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.02em;text-transform:none;font-weight:400;opacity:.75}
+.navscroll{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding-block:2px}
+.navscroll a{white-space:nowrap;text-decoration:none;font-size:.86rem;padding:6px 10px;border-radius:4px;color:var(--nav-ink);border:1px solid transparent}
+.navscroll a:hover{border-color:var(--accent)}
+.navscroll a.on{background:var(--accent);color:var(--accent-ink)}
+.iconbtn{background:transparent;border:1px solid #ffffff55;color:var(--nav-ink);border-radius:4px;padding:6px 10px;font-size:.85rem;white-space:nowrap}
+.iconbtn:hover{border-color:var(--accent)}
+/* reference strip */
+.refbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.refbar .wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-block:8px}
+.refbar b{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:4px}
+.chip{display:inline-block;text-decoration:none;font-size:.82rem;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+/* hero */
+.hero{padding-block:28px 12px}
+.hero .tag{font-family:var(--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.hero h1{font-size:clamp(2.4rem,7vw,4.6rem);font-weight:700;text-transform:uppercase;margin-block:6px 10px}
+.hero p{max-width:62ch;color:var(--muted);margin:0 0 14px}
+.author{display:inline-flex;gap:8px;align-items:center;font-family:var(--mono);font-size:.82rem;border-top:2px solid var(--ink);padding-top:8px}
+.searchrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.searchrow input{flex:1;min-width:0;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);font:inherit}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:4px;padding:10px 16px;font-weight:600}
+.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.btn:hover{filter:brightness(1.08)}
+/* sections */
+section.ch{padding-block:30px;border-top:1px solid var(--line)}
+.ch-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.ch-head .no{font-family:var(--mono);font-size:.85rem;color:var(--accent);border:1px solid var(--accent);padding:1px 8px;border-radius:3px}
+.ch-head h2{font-size:clamp(1.8rem,4.5vw,2.7rem);text-transform:uppercase;font-weight:700}
+.lead{max-width:68ch;color:var(--muted);margin:4px 0 18px}
+h3{font-size:1.4rem;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.02em}
+.hint{font-family:var(--mono);font-size:.74rem;color:var(--muted);margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+.tile strong{font-family:var(--display);font-size:1.2rem;font-weight:600;letter-spacing:.02em}
+.tile span{font-size:.88rem;color:var(--muted)}
+.tile.e{border-left:5px solid var(--elec)}
+.tile.m{border-left:5px solid var(--accent)}
+.tile .go{margin-top:auto;font-family:var(--mono);font-size:.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;padding-top:6px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:.93rem}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td button.lnk{background:none;border:0;padding:0;text-align:left;font-weight:600;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.note{background:var(--warn-soft);border-left:5px solid var(--accent);padding:10px 14px;border-radius:0 6px 6px 0;margin:14px 0;font-size:.93rem;max-width:80ch}
+.note.e{background:var(--elec-soft);border-left-color:var(--elec)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.two>*{min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.card h4{font-family:var(--display);font-size:1.25rem;margin:0 0 6px;text-transform:uppercase}
+ul.tick{margin:6px 0;padding-left:1.1rem}
+ul.tick li{margin:4px 0}
+.steps{counter-reset:s;list-style:none;padding:0;margin:8px 0;display:grid;gap:8px}
+.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 14px 10px 52px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:12px;top:8px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-family:var(--mono);font-size:.85rem}
+.steps li button{background:none;border:0;padding:0;font-weight:600;color:var(--accent);text-decoration:underline;text-underline-offset:3px;text-align:left}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px;overflow-x:auto}
+.diagram svg{display:block;max-width:100%;height:auto;margin-inline:auto}
+svg text{font-family:var(--body);fill:var(--ink)}
+/* quiz */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin:10px 0}
+.q p{margin:0 0 8px;font-weight:600}
+.opt{display:block;width:100%;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 12px;margin:6px 0}
+.opt:hover{border-color:var(--accent)}
+.opt.right{border-color:var(--ok);background:var(--elec-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--warn-soft)}
+.fb{font-size:.9rem;margin-top:6px;min-height:1.3em}
+/* checklist */
+.check{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:6px 0}
+.check input{width:20px;height:20px;margin-top:3px;accent-color:var(--accent)}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:6px 0 2px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+textarea.ws{width:100%;min-height:70px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);padding:8px;font:inherit}
+label.ws{display:block;font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 3px}
+/* popup */
+.ov{position:fixed;inset:0;background:rgba(5,11,16,.62);z-index:60;display:none;align-items:flex-end;justify-content:center;padding:0}
+.ov.open{display:flex}
+.modal{background:var(--surface);color:var(--ink);width:100%;max-width:720px;max-height:92%;overflow-y:auto;border-radius:12px 12px 0 0;border-top:5px solid var(--accent);padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.ov{align-items:center;padding:20px}.modal{border-radius:10px;max-height:90%}}
+.modal h2{font-size:2rem;text-transform:uppercase;font-weight:700;margin-bottom:2px}
+.modal .kind{font-family:var(--mono);font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+.modal .x{float:right;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:4px 12px}
+.modal h5{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 6px;font-weight:500}
+.srch{display:flex;flex-wrap:wrap;gap:6px}
+.srch a{text-decoration:none;font-size:.85rem;padding:6px 11px;border:1px solid var(--ink);border-radius:4px;background:var(--bg)}
+.srch a:hover{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.srch a.g{border-color:var(--elec)}
+footer{background:var(--nav);color:var(--nav-ink);margin-top:30px;border-top:3px solid var(--accent);padding-block:24px}
+footer .wrap{display:flex;gap:18px;justify-content:space-between;flex-wrap:wrap}
+footer b{font-family:var(--display);font-size:1.4rem;letter-spacing:.04em}
+footer small{display:block;opacity:.75;max-width:60ch}
+</style>
+
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top">Main Engine<small>Rafael Sukirno, CE</small></a>
+    <nav class="navscroll" id="nav" aria-label="Bab"></nav>
+    <button class="iconbtn" id="themeBtn" type="button" aria-label="Ganti tema">Tema</button>
+  </div>
+</header>
+<div class="refbar"><div class="wrap" id="refbar"><b>Referensi</b></div></div>
+
+<main id="top">
+<div class="wrap hero">
+  <div class="tag">Handbook Sistem Machinery Kapal · Bulk Carrier 50.000 DWT · Rev.01</div>
+  <h1>Main Engine: Mechanical, Electrical, Electronical</h1>
+  <p>Bahan belajar taruna untuk Bab 1.3 sampai 1.20. Klik komponen, sistem, alat ukur, atau langkah mana pun untuk membuka penjelasan, lalu cari foto, gambar, video, dan regulasi (IMO, SOLAS, MARPOL, Class) dengan satu klik.</p>
+  <div class="author">Disusun oleh Rafael Sukirno, CE · Marine Engineering Instructor</div>
+  <form class="searchrow" id="gform">
+    <input id="gq" type="search" placeholder="Cari topik apa saja, misalnya turbocharger surging" aria-label="Kata kunci pencarian">
+    <button class="btn" type="submit">Cari di semua sumber</button>
+  </form>
+</div>
+<div class="wrap" id="chapters"></div>
+</main>
+
+<footer><div class="wrap">
+  <div><b>Rafael Sukirno, CE</b><small>Marine Engineering Instructor · POLTEKPEL Surabaya · Universitas Hang Tuah Surabaya. Materi pengantar. Selalu cocokkan dengan manual pabrikan, diagram kelistrikan, batas parameter, dan prosedur keselamatan kapal.</small></div>
+  <div><small>Tautan pencarian membuka situs luar di tab baru.</small></div>
+</div></footer>
+
+<div class="ov" id="ov" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt" id="modal"></div></div>
+
+<script>
+/* ---------- helpers ---------- */
+var enc=encodeURIComponent;
+var SRC=[
+ ['Google','https://www.google.com/search?q=','g'],
+ ['Gambar','https://www.google.com/search?tbm=isch&q=','g'],
+ ['Pinterest','https://www.pinterest.com/search/pins/?q=',''],
+ ['YouTube','https://www.youtube.com/results?search_query=','']
+];
+var REG=[
+ ['IMO','https://www.google.com/search?q=site%3Aimo.org+','g'],
+ ['SOLAS','https://www.google.com/search?q=SOLAS+regulation+',''],
+ ['MARPOL','https://www.google.com/search?q=MARPOL+',''],
+ ['DNV','https://www.google.com/search?q=site%3Adnv.com+rules+',''],
+ ['ABS','https://www.google.com/search?q=site%3Aeagle.org+rules+',''],
+ ['LR','https://www.google.com/search?q=site%3Ala.lr.org+rules+',''],
+ ['BKI','https://www.google.com/search?q=site%3Abki.co.id+rules+',''],
+ ['ClassNK','https://www.google.com/search?q=site%3Aclassnk.or.jp+rules+','']
+];
+function links(q,list){return list.map(function(s){return '<a class="'+s[2]+'" target="_blank" rel="noopener" href="'+s[1]+enc(q)+'">'+s[0]+'</a>'}).join('')}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+
+/* ---------- reference bar ---------- */
+(function(){
+ var home=[['IMO','https://www.imo.org'],['SOLAS','https://www.google.com/search?q=SOLAS+convention+IMO'],['MARPOL','https://www.google.com/search?q=MARPOL+convention+IMO'],['DNV','https://www.dnv.com'],['ABS','https://ww2.eagle.org'],['LR','https://www.lr.org'],['BKI','https://www.bki.co.id'],['ClassNK','https://www.classnk.or.jp'],['Google','https://www.google.com'],['Pinterest','https://www.pinterest.com'],['YouTube','https://www.youtube.com']];
+ document.getElementById('refbar').insertAdjacentHTML('beforeend',home.map(function(h){return '<a class="chip" target="_blank" rel="noopener" href="'+h[1]+'">'+h[0]+'</a>'}).join(''));
+})();
+
+/* ---------- diagrams ---------- */
+function svgFlow(){return '<svg viewBox="0 0 640 170" width="640" role="img" aria-label="Sensor ke controller ke actuator ke hasil kerja mesin, dengan feedback"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0L8,4L0,8z" fill="currentColor"/></marker></defs><g style="color:var(--ink)" stroke="currentColor" fill="none" stroke-width="2"><rect x="8" y="40" width="130" height="64" rx="4" fill="var(--elec-soft)"/><rect x="178" y="40" width="130" height="64" rx="4" fill="var(--elec-soft)"/><rect x="348" y="40" width="130" height="64" rx="4" fill="var(--warn-soft)"/><rect x="518" y="40" width="114" height="64" rx="4" fill="var(--surface)"/><path d="M138 72H176" marker-end="url(#ar)"/><path d="M308 72H346" marker-end="url(#ar)"/><path d="M478 72H516" marker-end="url(#ar)"/><path d="M575 106V140H73V106" marker-end="url(#ar)" stroke-dasharray="6 5"/></g><g font-size="14" text-anchor="middle" font-weight="600"><text x="73" y="68">SENSOR</text><text x="243" y="68">CONTROLLER</text><text x="413" y="68">ACTUATOR</text><text x="575" y="68">HASIL KERJA</text></g><g font-size="11.5" text-anchor="middle"><text x="73" y="87">tekanan, suhu, putaran</text><text x="243" y="87">bandingkan dengan target</text><text x="413" y="87">mekanis, hidrolik, elektrik</text><text x="575" y="87">posisi, aliran, tenaga</text><text x="320" y="160" font-style="italic">feedback dari sensor untuk koreksi</text></g></svg>'}
+function svgStroke(stage){
+ var top={1:40,2:36,3:88,4:64}[stage];
+ var lab={1:'Piston naik ke TMA, udara dimampatkan',2:'Bahan bakar dikabutkan, menyala',3:'Tekanan mendorong piston turun',4:'Gas buang keluar, udara segar masuk'}[stage];
+ var flame=stage===2||stage===3?'<path d="M92 '+(top-26)+'q-14 -22 0 -40q14 18 0 40z" fill="var(--accent)" stroke="none" transform="translate(0 '+(stage===2?18:30)+')"/>':'';
+ var arrows={1:'M180 130V60',2:'M180 60V70',3:'M180 70V140',4:'M180 100V60'}[stage];
+ return '<svg viewBox="0 0 360 200" width="360" role="img" aria-label="'+lab+'"><g stroke="var(--ink)" stroke-width="2" fill="none"><rect x="60" y="10" width="64" height="170" fill="var(--bg)"/><rect x="62" y="'+top+'" width="60" height="30" fill="var(--muted)" opacity=".55"/><path d="M92 '+(top+30)+'V190" stroke-width="5"/><path d="'+arrows+'" marker-end="url(#a2)"/></g><defs><marker id="a2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0L8,4L0,8z" fill="var(--ink)"/></marker></defs>'+flame+'<text x="150" y="40" font-size="13" font-weight="600">Tahap '+stage+'</text><text x="150" y="100" font-size="12">'+lab+'</text></svg>';
+}
+
+/* ---------- content database (popups) ---------- */
+var DB={};
+function add(k,t,kind,d,pts,q,diag,type){DB[k]={t:t,kind:kind,d:d,pts:pts||[],q:q||t,diag:diag||'',type:type||'m'}}
+function tile(k){var o=DB[k];return '<button class="tile '+o.type+'" type="button" data-open="'+k+'"><strong>'+esc(o.t)+'</strong><span>'+esc(o.d)+'</span><span class="go">Buka penjelasan</span></button>'}
+function lnk(k,txt){return '<button class="lnk" type="button" data-open="'+k+'">'+esc(txt||DB[k].t)+'</button>'}
+
+/* 1.3 components */
+var comps=[
+['bedplate','Bedplate','Fondasi utama mesin dan penopang crankshaft.','Bedplate menahan seluruh beban statis dan dinamis mesin dan menjadi dasar pemasangan ke fondasi kapal.',['Pemeriksaan penting: kerataan, retak, alignment','Dibuat dari fabrikasi baja atau pengecoran sesuai desain']],
+['frame','Frame / column','Menopang struktur dan komponen mesin.','Frame dan column menghubungkan bedplate dengan bagian atas mesin dan menopang cylinder block serta komponen terkait.',['Susunan berbeda menurut jenis dan pabrikan mesin']],
+['liner','Cylinder liner','Permukaan tempat piston bergerak.','Liner adalah dinding silinder tempat piston dan piston ring bergerak. Keausan dan ovalitasnya menentukan kompresi dan konsumsi oli silinder.',['Pemeriksaan penting: diameter, ovalitas, keausan','Diukur dengan bore gauge dan dibandingkan dengan batas di manual']],
+['piston','Piston','Menerima tekanan gas hasil pembakaran.','Piston meneruskan tekanan pembakaran ke connecting rod. Dapat berupa forging, casting, atau konstruksi komposit sesuai desain.',['Pemeriksaan penting: dimensi, retak, ring groove']],
+['rings','Piston rings','Membantu sealing gas dan pengendalian oli.','Piston ring menutup celah antara piston dan liner agar gas tidak bocor dan oli terkendali.',['Dicek: ring groove, keausan, kebebasan gerak']],
+['conrod','Connecting rod','Meneruskan gaya piston ke mekanisme crankshaft.','Connecting rod mengubah gaya lurus piston menjadi gaya putar pada crank.',['Pemeriksaan penting: retak, dimensi, bearing bore']],
+['crank','Crankshaft','Mengubah gerak bolak-balik menjadi putaran.','Crankshaft adalah poros utama yang menerima gaya dari semua connecting rod dan memutar sistem propulsi.',['Pemeriksaan penting: runout, journal, retak','Diameter journal dibandingkan dengan batas ukuran dalam manual mesin']],
+['mbearing','Main bearing','Menopang crankshaft yang berputar.','Main bearing menjaga crankshaft tetap pada posisinya dengan lapisan oli tipis.',['Pemeriksaan penting: clearance dan kondisi permukaan']],
+['cover','Cylinder cover','Menutup silinder dan menampung komponen terkait pembakaran.','Cylinder cover menutup ruang bakar dan menjadi tempat injector, katup, dan sensor tertentu.',['Pemeriksaan penting: kerataan, retak, kebocoran']],
+['injector','Fuel injector','Mengabutkan bahan bakar ke ruang bakar.','Injector menyemprotkan bahan bakar bertekanan menjadi kabut halus agar terbakar sempurna.',['Pemeriksaan: tekanan dan pola semprotan sesuai spesifikasi']],
+['exvalve','Exhaust valve','Mengatur keluarnya gas buang pada desain yang menggunakannya.','Exhaust valve membuka untuk membuang gas hasil pembakaran dan menutup rapat saat kompresi dan pembakaran.',['Tidak semua desain mesin memakai katup buang yang sama']],
+['turbo','Turbocharger','Memanfaatkan energi gas buang untuk meningkatkan suplai udara.','Turbocharger memakai energi gas buang untuk memutar compressor yang memasok udara ke mesin.',['Gangguan dapat memengaruhi tenaga, konsumsi bahan bakar, temperatur gas buang, dan pembakaran'],'turbocharger marine diesel engine']
+];
+comps.forEach(function(c){add(c[0],c[1],'Komponen mekanis',c[3],[c[2]].concat(c[4]),(c[5]||c[1]+' marine diesel engine'),'', 'm')});
+
+/* 1.4 four stages */
+var st=[['Kompresi','Piston bergerak menuju titik mati atas (TMA). Udara di dalam silinder dimampatkan sehingga temperaturnya meningkat.'],['Pembakaran','Bahan bakar disemprotkan ke udara panas dan menyala akibat kompresi pada mesin diesel.'],['Menghasilkan tenaga','Tekanan pembakaran mendorong piston. Gaya diteruskan melalui connecting rod untuk memutar crankshaft.'],['Pertukaran gas','Gas buang dikeluarkan dan udara segar masuk untuk siklus berikutnya. Mekanisme ini bergantung pada desain mesin.']];
+st.forEach(function(s,i){add('stage'+(i+1),'Tahap '+(i+1)+': '+s[0],'Siklus kerja',s[1],[],'diesel engine '+s[0].toLowerCase()+' stroke marine','<div class="diagram">'+svgStroke(i+1)+'</div>','m')});
+
+/* 1.5 support systems */
+var sy=[
+['fuel','Fuel oil','Transfer pump, filter, booster pump, injector','Menyediakan bahan bakar','fuel oil system marine main engine'],
+['lub','Lubricating oil','LO pump, filter, cooler, bearing','Mengurangi gesekan dan keausan','lubricating oil system marine main engine'],
+['cool','Cooling water','Pump, cooler, thermostat','Mengendalikan temperatur','cooling water system marine main engine'],
+['startair','Starting air','Compressor, receiver, starting valve','Memutar mesin saat start','starting air system marine diesel engine'],
+['scav','Scavenging air','Turbocharger, air cooler, receiver','Menyuplai udara pembakaran','scavenge air system turbocharger marine'],
+['exh','Exhaust gas','Exhaust valve, manifold, turbocharger','Membuang gas hasil pembakaran','exhaust gas system marine main engine'],
+['ctrl','Control system','Sensor, controller, governor, actuator','Mengatur dan memantau operasi','main engine control system governor marine']
+];
+sy.forEach(function(s){add(s[0],s[1],'Sistem pendukung','Tujuan: '+s[3]+'. Komponen utama: '+s[2]+'.',['Mechanical, Electrical, dan Electronic & Control bekerja bersama di setiap sistem'],s[4],'','e')});
+add('startair','Starting air system','Sistem pendukung','Udara bertekanan digunakan untuk memutar Main Engine saat starting pada mesin yang memakai sistem ini. Prosedur wajib mengikuti manual kapal karena starting air bertekanan tinggi memiliki risiko serius.',['Mechanical: compressor, air receiver, piping, distributor, starting valve','Electrical: motor compressor, starter, proteksi, suplai kontrol','Electronic & Control: pressure switch, pressure transmitter, start permissive, interlock, monitoring'],'starting air system marine diesel engine','','e');
+add('turbosys','Turbocharger & scavenge air','Sistem pendukung','Turbocharger memakai energi gas buang untuk menggerakkan compressor yang memasok udara ke mesin. Gangguan turbocharger dapat memengaruhi tenaga, konsumsi bahan bakar, temperatur gas buang, dan kondisi pembakaran.',['Mechanical: turbine, compressor, shaft, bearing, air cooler, saluran gas buang','Electrical: sensor dan perangkat bantu yang memerlukan suplai listrik','Electronic & Control: monitoring RPM turbocharger, temperatur, tekanan udara, alarm jika tersedia'],'marine turbocharger scavenge air system','','e');
+
+/* 1.6 / 1.7 / 1.8 */
+add('elec16','Hubungan Electrical dengan Main Engine','Konsep','Listrik tidak selalu menjadi sumber tenaga putar utama. Pada mesin diesel mekanis konvensional, tenaga berasal dari pembakaran bahan bakar. Listrik digunakan untuk sistem pendukung dan kontrol.',['Motor listrik menggerakkan pompa pendukung','Sensor mengirim informasi tekanan dan temperatur','Solenoid mengendalikan valve tertentu','Controller atau governor mengatur kecepatan dan suplai bahan bakar','Alarm dan shutdown memberi perlindungan saat kondisi tidak aman'],'marine main engine electrical control system','','e');
+add('sca','Sensor, controller, actuator','Konsep','Sensor membaca tekanan, temperatur, atau putaran. Controller membandingkan kondisi dengan target dan logika kontrol. Actuator melaksanakan perintah mekanis, hidrolik, atau elektrik. Feedback dari sensor dipakai untuk mengoreksi hasil kerja.',[],'sensor controller actuator marine engine automation','<div class="diagram">'+svgFlow()+'</div>','e');
+add('ws18','Praktik awal di workshop','Praktik','Sebelum mengukur Main Engine kapal, taruna berlatih memakai komponen atau trainer terpisah.',['Mengidentifikasi sensor tekanan dan temperatur','Mengenali motor listrik dan nameplate-nya','Mengukur tegangan dan resistansi pada rangkaian latihan yang tidak bertegangan','Mempelajari wiring diagram dan terminal','Mengamati relay, solenoid, dan actuator pada trainer','Membaca alarm dan memahami hubungan penyebab, sinyal, respons','Keselamatan: jangan mengukur resistansi pada rangkaian bertegangan atau menguji actuator pada mesin yang beroperasi tanpa prosedur, izin, dan pengamanan'],'marine engineering workshop practice electrical training','','e');
+
+/* 1.10 fabrication */
+var fab=[['f1','Engineering drawing','Menentukan dimensi, material, toleransi, dan spesifikasi.'],['f2','Material preparation','Memilih baja paduan, besi cor, atau material lain sesuai fungsi komponen.'],['f3','Casting atau forging','Membentuk komponen melalui pengecoran atau penempaan, sesuai desain.'],['f4','Machining','Membentuk permukaan dan dimensi dengan mesin bubut, milling, grinding, atau boring.'],['f5','Heat treatment','Mengatur sifat material jika diperlukan.'],['f6','Inspection','Memeriksa dimensi, retak, kekerasan, dan cacat material sesuai spesifikasi.'],['f7','Assembly','Merakit komponen dengan prosedur, toleransi, dan torsi yang ditetapkan pabrikan.'],['f8','Testing','Menjalankan pengujian sesuai standar dan prosedur pabrikan.']];
+fab.forEach(function(f){add(f[0],f[1],'Tahap fabrikasi',f[2],['Proses aktual berbeda menurut jenis Main Engine. Tidak semua komponen dibuat dengan metode yang sama.'],f[1]+' marine engine component manufacturing','','m')});
+var tools=[['t1','Vernier caliper','Mengukur dimensi luar, dalam, dan kedalaman sesuai kemampuan alat.'],['t2','Micrometer','Mengukur diameter atau ketebalan dengan ketelitian lebih tinggi.'],['t3','Dial indicator','Memeriksa runout, pergeseran, dan alignment tertentu.'],['t4','Bore gauge','Mengukur diameter dalam dan membantu memeriksa ovalitas.'],['t5','Feeler gauge','Memeriksa celah atau clearance.'],['t6','Torque wrench','Mengencangkan baut sesuai nilai torsi yang ditentukan.']];
+tools.forEach(function(f){add(f[0],f[1],'Alat ukur mekanis',f[2],['Batas keausan, clearance, dan torsi harus diambil dari manual mesin yang tepat, bukan angka perkiraan.'],f[1]+' how to use marine engineering','','m')});
+add('align','Assembly dan alignment','Praktik','Urutan assembly umum: periksa kebersihan dan kondisi komponen, pastikan identitas sesuai gambar, pasang bearing sesuai prosedur, periksa clearance dan posisi, kencangkan baut dengan metode dan torsi yang ditentukan, periksa alignment, putaran bebas, pelumasan, lalu pemeriksaan akhir.',['Alignment buruk menyebabkan getaran, keausan bearing, kerusakan seal, dan beban berlebih pada poros','Pekerjaan pada crankshaft, bedplate, dan komponen Main Engine asli dilakukan personel kompeten sesuai manual pabrikan'],'marine engine crankshaft alignment assembly','','m');
+
+/* 1.11 electrical */
+var nm=[['kW','Daya keluaran nominal motor'],['V','Tegangan nominal'],['A','Arus nominal'],['Hz','Frekuensi suplai'],['RPM','Kecepatan putaran nominal'],['Phase','Jumlah fase, umumnya 3 fase pada motor industri kapal'],['Power factor (cos φ)','Faktor daya'],['IP rating','Tingkat perlindungan terhadap debu dan air'],['Insulation class','Kelas termal sistem isolasi']];
+add('nameplate','Nameplate motor listrik','Elektrikal','Nameplate adalah identitas teknis motor. Sebelum memasang, menguji, atau mengganti motor, data ini harus dibaca.',nm.map(function(n){return n[0]+': '+n[1]}).concat(['Contoh latihan: 400 V, 50 Hz, 7,5 kW, 14 A, 1.460 RPM. Angka hanya contoh, bukan spesifikasi motor di MV Baabullah.','Bandingkan tegangan suplai dengan nameplate dan pastikan sambungan winding sesuai konfigurasi yang diizinkan pabrikan']),'electric motor nameplate how to read','','e');
+add('contactor','Contactor','Elektrikal','Sakelar elektromagnetik yang menyambungkan atau memutus daya motor berdasarkan perintah rangkaian kontrol.',['Coil contactor mendapat suplai kontrol, kontak utama menutup, motor menerima daya'],'contactor motor starter marine','','e');
+add('overload','Overload relay','Elektrikal','Perangkat proteksi yang mendeteksi beban berlebih sesuai karakteristiknya dan memerintahkan rangkaian kontrol memutus motor. Tidak menggantikan proteksi hubung singkat.',['Pendamping: circuit breaker atau fuse, push button START/STOP, auxiliary contact, sensor temperatur winding, emergency stop'],'thermal overload relay motor protection','','e');
+add('dol','Starting Direct-On-Line (DOL)','Elektrikal','Motor menerima tegangan suplai langsung melalui rangkaian starter. Urutan: suplai dan proteksi tersedia, operator memberi START, coil contactor mendapat suplai, kontak utama menutup, motor berputar, proteksi memutus jika ada gangguan.',['DOL sederhana tetapi arus start tinggi','Pilih metode start menurut daya motor, karakteristik beban, dan kapasitas jaringan kapal','Metode lain: star-delta, soft starter, variable frequency drive (VFD)'],'direct on line starter star delta soft starter VFD','','e');
+var inst=[['i1','Multimeter','Mengukur tegangan, resistansi, dan kontinuitas sesuai fungsi alat'],['i2','Clamp meter','Mengukur arus tanpa memutus konduktor'],['i3','Insulation resistance tester','Menguji tahanan isolasi winding sesuai prosedur'],['i4','Phase rotation meter','Memeriksa urutan fase'],['i5','Tachometer','Mengukur kecepatan putaran'],['i6','Thermal camera','Membantu menemukan titik panas abnormal']];
+inst.forEach(function(f){add(f[0],f[1],'Alat ukur elektrikal',f[2],['Mulai pada trainer bertegangan rendah yang sesuai','Pengujian instalasi kapal oleh personel kompeten, dengan isolasi energi dan verifikasi bebas tegangan','Jangan memakai insulation tester pada rangkaian elektronik yang masih terhubung tanpa izin prosedur pabrikan; tegangan uji dapat merusak sensor atau controller'],f[1]+' electrical testing marine','','e')});
+var mt=[['Motor tidak berputar','Suplai hilang, proteksi trip, coil contactor gagal, atau motor bermasalah'],['Motor berdengung','Kehilangan fase, masalah sambungan, atau rotor/beban macet'],['Motor terlalu panas','Beban berlebih, pendinginan buruk, tegangan tidak normal, atau masalah bearing'],['Arus tidak seimbang','Ketidakseimbangan tegangan, sambungan buruk, atau gangguan winding'],['Getaran tinggi','Alignment buruk, bearing rusak, atau ketidakseimbangan mekanis'],['Overload sering trip','Beban terlalu besar, arus berlebih, atau setelan/proteksi tidak sesuai']];
+mt.forEach(function(m,i){add('mt'+i,m[0],'Troubleshooting motor','Kemungkinan penyebab: '+m[1]+'.',['Gejala tidak otomatis membuktikan satu penyebab','Diagnosis berdasarkan pengukuran, inspeksi, diagram rangkaian, dan manual peralatan'],'electric motor '+m[0].toLowerCase()+' troubleshooting','','e')});
+
+/* 1.12 electronic */
+add('tempcase','Kasus: alarm high cooling-water temperature','Troubleshooting','Temperatur tinggi bisa berasal dari gangguan pendinginan yang nyata, masalah pengukuran, atau keduanya. Alarm tidak boleh diabaikan dan proteksi tidak boleh di-bypass.',['1. Periksa indikasi: bandingkan panel dengan instrumen pembanding','2. Periksa sensor: sambungan, kabel, konektor','3. Periksa sinyal: teknisi kompeten memverifikasi transmitter dan input controller dari wiring diagram','4. Periksa kondisi mekanis: aliran pendingin, pompa, filter, cooler, valve','5. Periksa kontrol: alarm, setpoint, logika sesuai manual','6. Tentukan penyebab. Jangan langsung mengganti sensor'],'main engine high cooling water temperature alarm troubleshooting','','e');
+add('pid','PID Control','Konsep','P (Proportional) merespons besar selisih antara nilai aktual dan target. I (Integral) memperhitungkan akumulasi selisih terhadap waktu. D (Derivative) merespons perubahan selisih.',['Contoh: controller mengatur control valve pendingin menjaga temperatur pada setpoint','Tidak semua sistem Main Engine memakai PID; ada logika ON/OFF, control map, governor khusus, atau algoritma OEM'],'PID control temperature marine engine cooling valve','','e');
+
+/* 1.13 */
+var cs=[['RPM tidak terbaca','Speed pickup, kabel, suplai, atau input controller','Periksa sensor dan sinyal sesuai manual'],['Tekanan terlihat tidak wajar','Transmitter, kabel, suplai, atau tekanan aktual','Bandingkan dengan instrumen yang sesuai'],['Controller mati','Suplai hilang, fuse putus, koneksi buruk, atau kerusakan internal','Periksa suplai dan diagram rangkaian'],['Actuator tidak bergerak','Perintah tidak ada, suplai gagal, mekanisme macet, atau actuator rusak','Periksa input, output, dan kondisi mekanis'],['Komunikasi CAN bus gagal','Terminasi, kabel, konektor, suplai node, atau perangkat komunikasi','Periksa jaringan sesuai topologi dan manual']];
+cs.forEach(function(c,i){add('cs'+i,c[0],'Kasus gangguan','Kemungkinan penyebab: '+c[1]+'.',['Arah pemeriksaan: '+c[2],'Satu gejala dapat memiliki beberapa penyebab; diagnosis berdasarkan hasil pemeriksaan, bukan dugaan'],'marine main engine '+c[0].toLowerCase()+' troubleshooting','','e')});
+add('pickup','Speed pickup','Sensor','Speed pickup mendeteksi putaran poros atau roda bergigi. Controller memakai sinyalnya untuk mengetahui kecepatan mesin.',['Identifikasi jenis sensor dan nomor komponen','Pelajari wiring diagram dan spesifikasi celah sensor','Periksa konektor, kabel, kondisi pemasangan','Bila prosedur mengizinkan, periksa sinyal dengan alat ukur sesuai','Bandingkan bentuk dan frekuensi sinyal dengan spesifikasi pabrikan','Sensor induktif menghasilkan sinyal AC yang frekuensinya naik seiring putaran; sensor Hall atau aktif berbeda','Jangan mengatur celah sensor atau menguji bagian berputar saat mesin beroperasi tanpa prosedur keselamatan yang disetujui'],'speed pickup sensor marine engine magnetic','','e');
+add('can','CAN bus','Komunikasi','CAN bus adalah jaringan komunikasi yang memungkinkan controller dan perangkat elektronik bertukar data.',['Periksa konektor, kabel, korosi, kerusakan fisik','Identifikasi topologi dan titik terminasi dari diagram','Periksa suplai daya perangkat yang tidak berkomunikasi','Gunakan diagnostic tool yang kompatibel untuk membaca fault code','Gunakan oscilloscope atau CAN analyzer bila perlu dan sesuai prosedur','Jangan langsung menyimpulkan controller rusak hanya karena komunikasi gagal'],'CAN bus troubleshooting marine engine','','e');
+add('report','Laporan troubleshooting','Dokumentasi','Setiap latihan menghasilkan catatan: Equipment, Gejala, Temuan awal, Pemeriksaan, Hasil ukur, Penyebab, Tindakan, Verifikasi.',['Contoh: Equipment Main Engine speed monitoring; Gejala indikasi RPM hilang; Temuan awal alarm speed signal','Penyebab diisi setelah bukti pemeriksaan tersedia; tindakan sesuai prosedur OEM'],'marine engineering troubleshooting report template','','e');
+
+/* 1.16 / 1.19 */
+var map=[['p1','1. Electrical power','Battery/UPS bila digunakan, power supply, distribution, fuse, breaker, grounding'],['p2','2. Input / sensor','Speed, temperature, pressure, position, dan sensor lain sesuai desain mesin'],['p3','3. Control & interlock','Controller, alarm, permissive, shutdown logic, communication network'],['p4','4. Output / actuator','Relay, solenoid valve, actuator, governor atau sistem kontrol elektronik sesuai tipe mesin'],['p5','5. Respons Main Engine','Start, running, perubahan RPM, alarm, dan respons terhadap perintah']];
+map.forEach(function(m){add(m[0],m[1],'Peta sistem pengetesan',m[2]+'.',['Ini model penelusuran gangguan, bukan jaminan semua Main Engine berkonfigurasi sama. Mesin mekanis, electronic governor, dan common rail dapat berbeda.'],m[1].slice(3)+' marine main engine testing','','e')});
+add('locase','Kasus: alarm low lubricating oil pressure','Troubleshooting terpadu','Masalah tekanan oli bisa bersumber dari sistem mekanis, rangkaian electrical, sensor elektronik, atau lebih dari satu penyebab sekaligus.',['Langkah 1: pastikan kondisi aktual dengan instrumen yang sesuai; jika benar rendah, ikuti prosedur keselamatan kapal','Langkah 2: periksa level oli, pompa, filter, kebocoran, relief valve, kemungkinan masalah bearing','Langkah 3: periksa suplai transmitter, kabel, konektor, sinyal dari diagram','Langkah 4: pastikan input, konfigurasi, logika alarm sesuai spesifikasi OEM','Langkah 5: catat hasil, penyebab terbukti, tindakan, dan hasil uji ulang'],'main engine low lubricating oil pressure alarm troubleshooting','','e');
+add('final','Checklist akhir setelah perbaikan','Verifikasi','Pengujian fungsi proteksi tidak boleh dilakukan dengan memaksakan kondisi berbahaya pada Main Engine yang sedang beroperasi. Gunakan simulasi atau test mode yang disetujui pabrikan.',['Penyebab didukung hasil pemeriksaan','Komponen pengganti sesuai spesifikasi pabrikan','Konektor, terminal, pelindung kabel, grounding terpasang benar','Alat dan benda asing keluar dari area kerja','Proteksi, interlock, alarm, shutdown tetap berfungsi','Pengujian sesuai izin kerja dan prosedur resmi','Parameter dan alarm sebelum dan sesudah dicatat','Mesin kembali ke konfigurasi operasi yang disetujui','Temuan, tindakan, suku cadang, hasil uji dicatat di riwayat maintenance'],'engine room maintenance records after repair checklist','','e');
+var pr=[['pr1','Praktik 1: Electrical power','Mengenali sumber, fuse, breaker, power supply, terminal, serta cara mengukur tegangan dan kontinuitas.'],['pr2','Praktik 2: Sensor','Membedakan sensor temperatur, tekanan, dan speed; mengidentifikasi sinyal serta metode pemeriksaan.'],['pr3','Praktik 3: Controller dan komunikasi','Membaca indikator diagnostik, mencatat alarm, menelusuri input/output, mengenali gangguan komunikasi.'],['pr4','Praktik 4: Aktuator','Menelusuri hubungan perintah, suplai, output, feedback, dan respons mekanis.'],['pr5','Praktik 5: Diagnosis terpadu','Menganalisis kasus, membuat hipotesis, memilih pengukuran aman, dan membuktikan penyebab.']];
+pr.forEach(function(m){add(m[0],m[1],'Praktik taruna',m[2],['Latihan memakai panel simulasi, trainer kelistrikan, sensor di meja praktik, atau data dari pengajar; tidak perlu langsung memakai Main Engine yang beroperasi'],m[1].split(': ')[1]+' marine engineering practice','','e')});
+var nx=[['n1','Diesel Generator','Alternator, AVR, excitation, governor, proteksi, sinkronisasi, dan troubleshooting.'],['n2','Steering Gear System','Hydraulic pump, motor listrik, NFU, feedback rudder angle, actuator, dan kontrol.'],['n3','Boiler System','Burner, feedwater pump, level control, flame detector, dan safety interlock.']];
+nx.forEach(function(m){add(m[0],m[1],'Machinery berikutnya',m[2],['Urutan yang disarankan: Diesel Generator, Steering Gear, lalu Boiler'],m[1]+' ship marine','','m')});
+
+/* ---------- quizzes ---------- */
+var QZ={
+ q12:[['Apa fungsi sensor tekanan?',['Mengukur tekanan','Menggerakkan pompa','Memutus semua suplai listrik'],0],['Apa fungsi utama controller?',['Hanya menyimpan bahan bakar','Memproses sinyal dan logika kontrol','Menopang crankshaft'],1],['Transmitter linear 0–10 bar mengeluarkan 12 mA pada rentang 4–20 mA. Berapa tekanannya?',['2,5 bar','5 bar','10 bar'],1,'(12 − 4) ÷ 16 = 0,5 dari rentang, maka 0,5 × 10 bar = 5 bar.']],
+ q16:[['Main Engine tidak dapat start. Panel controller menyala, tetapi RPM tidak terbaca saat starting. Pemeriksaan pertama yang paling tepat?',['Langsung mengganti controller','Memeriksa alarm, urutan starting, sensor speed, wiring, dan sinyal sesuai manual','Menonaktifkan shutdown agar mesin dapat start'],1],['Tegangan suplai kontrol normal saat mesin berhenti, tetapi turun saat starting. Apa yang diperiksa?',['Koneksi resistif tinggi, sumber listrik lemah, atau beban berlebih','Pasti sensor temperatur rusak','Pasti program controller terhapus'],0]],
+ q19:[['Controller mati. Pemeriksaan awal yang paling tepat adalah …',['Langsung mengganti controller','Memeriksa suplai, proteksi, dan koneksi berdasarkan diagram','Menjembatani fuse'],1],['Multimeter dipakai untuk uji kontinuitas. Syarat utamanya?',['Rangkaian harus bertegangan','Rangkaian diisolasi dan dipastikan bebas tegangan sesuai prosedur','Mesin harus berjalan'],1],['Sinyal sensor normal pada titik sensor tetapi tidak terbaca controller. Berikutnya?',['Telusuri kabel, konektor, jalur input, dan konfigurasi','Langsung mengganti mesin','Menonaktifkan alarm'],0],['Setelah perbaikan, apa yang wajib dilakukan?',['Menghapus semua alarm tanpa mencatatnya','Memastikan proteksi, melakukan pengujian resmi, dan mendokumentasikan hasil','Menganggap mesin normal tanpa uji'],1]]
+};
+function quiz(id){
+ return QZ[id].map(function(q,i){
+  return '<div class="q" data-q="'+id+':'+i+'"><p>'+(i+1)+'. '+esc(q[0])+'</p>'+q[1].map(function(o,j){return '<button type="button" class="opt" data-ans="'+j+'">'+esc(o)+'</button>'}).join('')+'<div class="fb" aria-live="polite"></div></div>';
+ }).join('');
+}
+
+/* ---------- chapters ---------- */
+function grid(keys){return '<div class="grid">'+keys.map(tile).join('')+'</div>'}
+function tbl(head,rows){return '<div class="tablewrap"><table><thead><tr>'+head.map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>'}
+
+var CH=[
+{id:'komponen',nav:'Komponen',no:'1.3',t:'Komponen mekanis',lead:'Main Engine tersusun dari bagian-bagian yang masing-masing punya fungsi dan titik pemeriksaan. Klik nama komponen untuk membaca fungsi, apa yang diperiksa, dan mencari foto serta video.',
+ body:function(){return tbl(['Komponen','Fungsi'],comps.map(function(c){return [lnk(c[0],c[1]),esc(c[2])]}))+'<div class="note">Susunan dan bentuk komponen berbeda menurut jenis serta pabrikan mesin.</div>'}},
+{id:'siklus',nav:'Siklus tenaga',no:'1.4',t:'Bagaimana mesin menghasilkan tenaga',lead:'Empat tahap pada mesin diesel. Klik tiap tahap untuk melihat posisi piston.',
+ body:function(){return grid(['stage1','stage2','stage3','stage4'])}},
+{id:'sistem',nav:'Sistem pendukung',no:'1.5–1.7',t:'Sistem pendukung, listrik, dan kontrol',lead:'Main Engine tidak bekerja sendiri. Setiap sistem punya sisi mechanical, electrical, dan electronic control.',
+ body:function(){return grid(['fuel','lub','cool','startair','scav','exh','ctrl','turbosys'])+'<h3>Hubungan Electrical dengan Main Engine</h3><div class="grid">'+tile('elec16')+tile('sca')+tile('ws18')+'</div><h3>Alur sensor, controller, actuator</h3><div class="diagram">'+svgFlow()+'</div>'+
+  '<h3>Target pembelajaran Bab 1</h3><ul class="tick"><li>Menjelaskan fungsi Main Engine.</li><li>Mengidentifikasi komponen utama.</li><li>Menjelaskan proses pembakaran dan pembentukan tenaga.</li><li>Membedakan sistem mechanical, electrical, dan electronic control.</li><li>Menjelaskan hubungan sensor, controller, actuator.</li><li>Menentukan pemeriksaan awal secara aman.</li></ul>'}},
+{id:'fabrikasi',nav:'Fabrikasi',no:'1.10',t:'Fabrikasi dan assembly',lead:'Dari gambar teknik sampai mesin terpasang. Bulk Carrier 50.000 DWT, Mechanical Science.',
+ body:function(){
+  var rows=[['Bedplate','Fabrikasi baja atau pengecoran sesuai desain','Kerataan, retak, alignment','bedplate'],['Crankshaft','Forging atau casting khusus, lalu machining','Runout, journal, retak','crank'],['Cylinder liner','Pengecoran dan machining','Diameter, ovalitas, keausan','liner'],['Piston','Forging, casting, atau konstruksi komposit','Dimensi, retak, ring groove','piston'],['Connecting rod','Forging atau desain fabrikasi khusus','Retak, dimensi, bearing bore','conrod'],['Bearing','Material dan proses pembuatan khusus','Clearance, kondisi permukaan','mbearing'],['Cylinder cover','Casting atau forging dan machining','Kerataan, retak, kebocoran','cover'],['Fuel injector','Precision machining dan perakitan presisi','Tekanan dan pola semprotan','injector']];
+  return '<h3>Delapan tahap pembuatan</h3><ol class="steps">'+fab.map(function(f){return '<li>'+lnk(f[0])+' <span style="color:var(--muted)">— '+esc(f[2])+'</span></li>'}).join('')+'</ol>'+
+  '<h3>Komponen dan metode pembuatannya</h3>'+tbl(['Komponen','Proses umum','Pemeriksaan penting'],rows.map(function(r){return [lnk(r[3],r[0]),esc(r[1]),esc(r[2])]}))+
+  '<h3>Alat ukur mekanis</h3>'+grid(['t1','t2','t3','t4','t5','t6'])+'<div class="note">Batas keausan, clearance, dan torsi harus diambil dari manual mesin yang tepat, bukan angka perkiraan.</div>'+
+  '<h3>Assembly dan alignment</h3><div class="grid">'+tile('align')+'</div>'+
+  '<h3>Hubungan dengan tiga pilar</h3><div class="two"><div class="card"><h4>Mechanical</h4>Material, casting, forging, machining, bearing, shaft, clearance, assembly, alignment.</div><div class="card"><h4>Electrical</h4>Motor penggerak mesin workshop, sistem daya, panel, proteksi, wiring, instrumen uji.</div><div class="card"><h4>Electronical, Control &amp; Actuating</h4>Sensor pengukuran, controller mesin produksi, otomasi, actuator pada peralatan uji.</div></div>'+
+  '<h3>Praktik taruna yang disarankan</h3><ul class="tick"><li>Mengukur poros dengan micrometer.</li><li>Mengukur diameter lubang dengan bore gauge.</li><li>Memeriksa runout dengan dial indicator.</li><li>Mengidentifikasi jenis bearing dan fungsinya.</li><li>Membaca gambar teknik sederhana.</li><li>Membuat lembar inspeksi dimensi dan membandingkan dengan spesifikasi latihan.</li></ul>'}},
+{id:'electrical',nav:'Electrical',no:'1.11',t:'Electrical system',lead:'Dari nameplate motor sampai cara motor dihidupkan, diukur, dan didiagnosis.',
+ body:function(){return '<div class="grid">'+['nameplate','contactor','overload','dol'].map(tile).join('')+'</div><h3>Alat ukur electrical</h3>'+grid(['i1','i2','i3','i4','i5','i6'])+
+  '<div class="note e">Mulai pada trainer bertegangan rendah. Pengujian instalasi kapal oleh personel kompeten dengan isolasi energi dan verifikasi bebas tegangan.</div>'+
+  '<h3>Troubleshooting dasar motor listrik</h3>'+tbl(['Gejala','Kemungkinan penyebab'],mt.map(function(m,i){return [lnk('mt'+i,m[0]),esc(m[1])]}))+
+  '<div class="note e">Gejala tidak otomatis membuktikan satu penyebab. Diagnosis berdasarkan pengukuran, inspeksi, diagram rangkaian, dan manual peralatan.</div>'}},
+{id:'electronic',nav:'Electronic',no:'1.12',t:'Electronic control dan actuator',lead:'Pilar ketiga: sensor, controller, dan actuator pada sistem yang dikendalikan otomatis.',
+ body:function(){return '<div class="two"><div class="card"><h4>Contoh: pompa pendingin otomatis</h4><ol class="tick"><li>Sensor membaca temperatur.</li><li>Controller membandingkan dengan setpoint.</li><li>Controller memberi perintah.</li><li>Contactor, VFD, atau penggerak menjalankan motor.</li><li>Sensor memberi feedback.</li></ol><p style="margin:0;color:var(--muted);font-size:.9rem">Tidak semua sistem begitu: ada yang berjalan terus, standby otomatis, atau berkontrol kecepatan.</p></div><div class="card"><h4>Target praktik taruna</h4>Membaca nameplate, mengenali contactor dan overload relay, menjelaskan urutan starting, memilih alat ukur tepat, menyusun diagnosis awal dari gejala.</div></div>'+
+  '<h3>Praktik dan konsep</h3><div class="grid">'+tile('tempcase')+tile('pid')+tile('sca')+'</div><h3>Latihan taruna</h3>'+quiz('q12')}},
+{id:'troubleshooting',nav:'Troubleshooting',no:'1.13',t:'Troubleshooting kelistrikan dan elektronika',lead:'Jangan langsung mengganti komponen. Telusuri dari gejala sampai bukti.',
+ body:function(){return '<h3>Urutan mencari sumber gangguan</h3><ol class="steps"><li>Gejala atau alarm muncul</li><li>Periksa alarm, kondisi mesin, dan riwayat gangguan</li><li>Periksa suplai listrik, fuse, kabel, dan konektor</li><li>Verifikasi sensor dan sinyal input</li><li>Periksa controller, komunikasi, dan output</li><li>Periksa actuator dan respons mekanis</li></ol><div class="note">Urutan ini panduan umum. Manual pabrikan dan prosedur keselamatan tetap acuan utama.</div>'+
+  '<h3>Lima kasus yang perlu dikuasai</h3>'+tbl(['Gejala','Kemungkinan penyebab','Arah pemeriksaan'],cs.map(function(c,i){return [lnk('cs'+i,c[0]),esc(c[1]),esc(c[2])]}))+
+  '<h3>Praktik</h3><div class="grid">'+tile('pickup')+tile('can')+tile('report')+'</div>'}},
+{id:'pengetesan',nav:'Pengetesan',no:'1.16',t:'Praktik pengetesan electrical dan electronical',lead:'Main Engine dapat gagal meski mekanisnya baik. Sebaliknya, alarm elektronik tidak selalu berarti komponen elektronik rusak.',
+ body:function(){return '<h3>Peta sistem yang diperiksa</h3><div class="grid">'+['p1','p2','p3','p4','p5'].map(tile).join('')+'</div>'+
+  '<h3>Simulasi mencari sumber kerusakan</h3>'+quiz('q16')+
+  '<h3>Kasus terpadu</h3><div class="grid">'+tile('locase')+tile('final')+'</div>'+
+  '<h3>Lembar pemeriksaan electrical &amp; electronics</h3><div class="card" id="ws"><label class="ws" for="w1">Objek pemeriksaan</label><textarea class="ws" id="w1"></textarea><label class="ws" for="w2">Gejala gangguan</label><textarea class="ws" id="w2"></textarea><label class="ws" for="w3">Hasil pengukuran dan alat yang digunakan</label><textarea class="ws" id="w3"></textarea><label class="ws" for="w4">Temuan dan kemungkinan penyebab</label><textarea class="ws" id="w4"></textarea><label class="ws" for="w5">Tindakan dan hasil verifikasi</label><textarea class="ws" id="w5"></textarea><p><button class="btn" type="button" id="copyws">Salin lembar pemeriksaan</button> <span id="copymsg" aria-live="polite" style="font-size:.88rem"></span></p></div>'}},
+{id:'evaluasi',nav:'Evaluasi',no:'1.19',t:'Evaluasi praktik taruna',lead:'Taruna harus bisa memeriksa dengan aman dan menjelaskan alasan teknis di balik tiap langkah.',
+ body:function(){return '<h3>Lima praktik yang dikuasai</h3><div class="grid">'+['pr1','pr2','pr3','pr4','pr5'].map(tile).join('')+'</div>'+
+  '<h3>Contoh penilaian praktik</h3>'+tbl(['Aspek penilaian','Bobot'],[['Keselamatan dan persiapan kerja','25%'],['Pemilihan alat serta metode ukur','20%'],['Ketepatan pengukuran dan pencatatan','20%'],['Analisis penyebab gangguan','20%'],['Tindakan koreksi dan verifikasi','15%'],['<b>Total</b>','<b>100%</b>']])+
+  '<div class="note">Keselamatan adalah syarat penting. Praktik dihentikan jika taruna hendak melepas proteksi, melakukan pengukuran tidak aman, atau mengoperasikan mesin tanpa otorisasi.</div><h3>Soal evaluasi</h3>'+quiz('q19')}},
+{id:'rangkuman',nav:'Rangkuman',no:'1.20',t:'Rangkuman dan checklist kelengkapan',lead:'Main Engine dipahami sebagai satu kesatuan sistem.',
+ body:function(){
+  var items=['Pengenalan fungsi dan konstruksi Main Engine','Pengelompokan Mechanical, Electrical, Electronical, dan Control & Automation','Pengenalan komponen dan fungsi rangkaian','Dasar alat ukur dan metode pengetesan','Pemeriksaan suplai, fuse, relay, dan terminal','Pemeriksaan sensor, controller, komunikasi, dan aktuator','Urutan operasi dari persiapan sampai shutdown','Studi kasus troubleshooting terpadu','Keselamatan kerja dan perlindungan sistem','Evaluasi praktik serta dokumentasi hasil'];
+  return '<div class="two"><div class="card"><h4>Mechanical</h4>Menghasilkan dan menyalurkan tenaga mekanis.</div><div class="card"><h4>Electrical</h4>Menyediakan dan mendistribusikan energi listrik serta mendukung rangkaian kontrol.</div><div class="card"><h4>Electronical</h4>Mengolah sinyal sensor, data, dan informasi diagnostik.</div><div class="card"><h4>Control &amp; Automation</h4>Menjalankan logika, mengatur aktuator, memonitor kondisi, mengaktifkan proteksi sesuai desain.</div></div>'+
+  '<h3>Checklist Main Engine <span id="cnt" style="font-family:var(--mono);font-size:1rem;color:var(--accent)">0/10</span></h3><div class="bar"><i id="barfill"></i></div>'+
+  items.map(function(t,i){return '<label class="check"><input type="checkbox" class="ck" id="ck'+i+'"><span>'+esc(t)+'</span></label>'}).join('')+
+  '<div class="note">Sebelum dipakai sebagai panduan servis pada mesin tertentu, cocokkan dengan manual pabrikan, diagram kelistrikan, batas parameter, dan prosedur keselamatan kapal.</div>'+
+  '<h3>Machinery berikutnya</h3><div class="grid">'+['n1','n2','n3'].map(tile).join('')+'</div>'}}
+];
+
+/* ---------- render ---------- */
+var nav=document.getElementById('nav'),host=document.getElementById('chapters');
+CH.forEach(function(c){
+ nav.insertAdjacentHTML('beforeend','<a href="#'+c.id+'" data-nav="'+c.id+'">'+c.nav+'</a>');
+ host.insertAdjacentHTML('beforeend','<section class="ch" id="'+c.id+'"><div class="ch-head"><span class="no">Bab '+c.no+'</span><h2>'+c.t+'</h2></div><p class="lead">'+c.lead+'</p>'+c.body()+'</section>');
+});
+
+/* ---------- modal ---------- */
+var ov=document.getElementById('ov'),modal=document.getElementById('modal'),lastFocus=null;
+function openModal(k,custom){
+ var o=custom||DB[k]; if(!o)return;
+ lastFocus=document.activeElement;
+ modal.innerHTML='<button class="x" type="button" data-close="1">Tutup</button><div class="kind">'+esc(o.kind)+'</div><h2 id="mt">'+esc(o.t)+'</h2>'+
+  '<p style="margin:8px 0">'+esc(o.d)+'</p>'+o.diag+
+  (o.pts.length?'<ul class="tick">'+o.pts.map(function(p){return '<li>'+esc(p)+'</li>'}).join('')+'</ul>':'')+
+  '<h5>Foto, gambar, dan video</h5><div class="srch">'+links(o.q,SRC)+'</div>'+
+  '<h5>Regulasi dan Class</h5><div class="srch">'+links(o.q,REG)+'</div>'+
+  '<p style="font-size:.78rem;color:var(--muted);margin:14px 0 0">Tautan membuka pencarian di tab baru. Materi oleh Rafael Sukirno, CE.</p>';
+ ov.classList.add('open');ov.setAttribute('aria-hidden','false');
+ modal.scrollTop=0;modal.querySelector('.x').focus();
+}
+function closeModal(){ov.classList.remove('open');ov.setAttribute('aria-hidden','true');if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+document.addEventListener('click',function(e){
+ var t=e.target.closest('[data-open]');
+ if(t){openModal(t.getAttribute('data-open'));return}
+ if(e.target===ov||e.target.closest('[data-close]')){closeModal();return}
+ var a=e.target.closest('.opt');
+ if(a){
+  var box=a.closest('.q'),p=box.getAttribute('data-q').split(':'),q=QZ[p[0]][+p[1]],j=+a.getAttribute('data-ans');
+  box.querySelectorAll('.opt').forEach(function(b,i){b.classList.remove('right','wrong');if(i===q[2])b.classList.add('right')});
+  if(j!==q[2])a.classList.add('wrong');
+  box.querySelector('.fb').textContent=(j===q[2]?'Benar. ':'Belum tepat. Jawaban yang benar ditandai hijau. ')+(q[3]||'');
+ }
+});
+document.addEventListener('keydown',function(e){
+ if(e.key==='Escape'&&ov.classList.contains('open'))closeModal();
+ if(e.key==='Tab'&&ov.classList.contains('open')){
+  var f=modal.querySelectorAll('a,button');if(!f.length)return;
+  var first=f[0],last=f[f.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+ }
+});
+
+/* global search */
+document.getElementById('gform').addEventListener('submit',function(e){
+ e.preventDefault();
+ var q=document.getElementById('gq').value.trim();if(!q){document.getElementById('gq').focus();return}
+ openModal('',{t:q,kind:'Pencarian bebas',d:'Pilih sumber untuk mencari topik ini.',pts:[],q:q,diag:''});
+});
+
+/* checklist */
+host.addEventListener('change',function(e){
+ if(!e.target.classList.contains('ck'))return;
+ var all=host.querySelectorAll('.ck'),n=0;all.forEach(function(c){if(c.checked)n++});
+ document.getElementById('cnt').textContent=n+'/10';document.getElementById('barfill').style.width=(n*10)+'%';
+});
+
+/* worksheet copy */
+var cb=document.getElementById('copyws');
+if(cb)cb.addEventListener('click',function(){
+ var L=['Objek pemeriksaan','Gejala gangguan','Hasil pengukuran dan alat yang digunakan','Temuan dan kemungkinan penyebab','Tindakan dan hasil verifikasi'];
+ var txt='LEMBAR PEMERIKSAAN ELECTRICAL & ELECTRONICS\n'+L.map(function(l,i){return l+': '+document.getElementById('w'+(i+1)).value}).join('\n')+'\nDisusun oleh Rafael Sukirno, CE';
+ var m=document.getElementById('copymsg');
+ function ok(){m.textContent='Tersalin.'}
+ function fb(){var ta=document.getElementById('w1');m.textContent='Salin manual: pilih teks di kolom.'}
+ try{navigator.clipboard.writeText(txt).then(ok,fb)}catch(x){fb()}
+});
+
+/* active nav */
+var secs=CH.map(function(c){return document.getElementById(c.id)});
+function setOn(){
+ var y=window.scrollY+140,cur=CH[0].id;
+ secs.forEach(function(s){if(s.offsetTop<=y)cur=s.id});
+ nav.querySelectorAll('a').forEach(function(a){var on=a.getAttribute('data-nav')===cur;a.classList.toggle('on',on);if(on&&a.scrollIntoView&&!nav.matches(':hover'))nav.scrollLeft=a.offsetLeft-60});
+}
+window.addEventListener('scroll',setOn,{passive:true});setOn();
+
+/* theme */
+document.getElementById('themeBtn').addEventListener('click',function(){
+ var r=document.documentElement,cur=r.getAttribute('data-theme');
+ if(!cur)cur=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+ var nx=cur==='dark'?'light':'dark';r.setAttribute('data-theme',nx);
+ try{localStorage.setItem('me-theme',nx)}catch(x){}
+});
+try{var sv=localStorage.getItem('me-theme');if(sv)document.documentElement.setAttribute('data-theme',sv)}catch(x){}
+</script>
+
+</body>
+</html>
